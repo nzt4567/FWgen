@@ -65,7 +65,7 @@ m_interfaces =  {
                             "MAC:": "00:00:00:00:00:FF",
                             "net": "192.168.2.0/27",
                             "mtu": "42",
-                            "type": "private"
+                            "type": "wan"
                           },
                   "wln0":
                           {
@@ -73,7 +73,7 @@ m_interfaces =  {
                             "MAC:": "00:00:00:00:FF:FF",
                             "net": "192.168.3.0/27",
                             "mtu": "43",
-                            "type": "private"
+                            "type": "wan"
                           }
                 }
 ############################### FW GENERATING ###########################
@@ -154,13 +154,31 @@ def gen_filter(trg="ACCEPT"):
 
       return ret
 
-    def gen_dhcp_c(trg="ACCEPT"):
+    def gen_http_c(trg="ACCEPT"):
       ret = list()
 
       return ret
 
     def gen_dns_c(trg="ACCEPT"):
       ret = list()
+      dns_servers = ("8.8.8.8", "8.8.4.4")
+      interfaces = tuple([x for x in m_interfaces \
+        if m_interfaces[x]["type"] == "wan"])
+      prt = ("TCP", "UDP")
+      src = {interfaces[i]:dns_servers for i in range(0,len(interfaces))}
+      s_p = "53"
+      dst = {interfaces[i]:m_interfaces[interfaces[i]]["IP"] \
+        for i in range(0, len(interfaces))}
+      d_p = m_clients
+      sta = "ESTABLISHED"
+
+      for i in interfaces:
+        for s in src[i]:
+          for p in prt:
+            ret.append(m_command + " -A " + name + " -p " + p + " -i " + \
+            i + " --src " + s + " --dst " + dst[i] + " --sport " + \
+            s_p + " --dport " + d_p + " -m state --state " + sta + \
+            " -j " + trg + "\n")
 
       return ret
 
@@ -170,7 +188,7 @@ def gen_filter(trg="ACCEPT"):
       return ret
 
     servers = (gen_dhcp_s, gen_dns_s, gen_ssh_s)
-    clients = (gen_dhcp_c, gen_dns_c, gen_ntp_c)
+    clients = (gen_http_c, gen_dns_c, gen_ntp_c)
     # do not forget to generate one rule for loopback interface - ACCEPT ALL
 
     for s in servers:
